@@ -1,0 +1,6 @@
+controller:
+ image: aloka/mongodb:v8
+ external_links:
+  - rs6/mongo1:mongo1
+  - rs6/mongo2:mongo2
+  - rs6/mongo3:mongo3

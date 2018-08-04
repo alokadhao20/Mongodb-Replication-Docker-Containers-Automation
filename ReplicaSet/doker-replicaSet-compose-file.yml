@@ -1,0 +1,24 @@
+mongo1:
+ image: mongo
+ restart: always
+ ports:
+  - "27118:27017"
+ command:
+  - --replSet
+  - "rs1"
+mongo2:
+ image: mongo
+ restart: always
+ ports:
+  - "27119:27017"
+ command:
+  - --replSet
+  - "rs1"
+mongo3:
+ image: mongo
+ restart: always
+ ports:
+  - "27200:27017"
+ command:
+  - --replSet
+  - "rs1"
