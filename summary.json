@@ -1,0 +1,40 @@
+Type of nodes
+primary
+secondary       - priority1     voting
+Arbiter node    - priority0     voting
+Delayed node    - priority0     voting
+Hidden node     - priority0     voting
+
+
+cfg.members[3].votes = 0;
+cfg.members[3].priority = 0;
+cfg.members[3].slaveDelay = 60;
+"arbiterOnly" : false
+"hidden" : false
+
+So How does replication works? -> oplogs local.oplog.rs
+
+Write concern   
+1. w:1 -> this mins send write to primary and once primary acknowledges the write then response back to user
+2. w:0 -> we are not councern about acknowledgement, In this case driver imidiately returns success once it is sent out to insert.
+3. w:2 -> this retruns write successfull when 1 primary and atleast one secondary write to disk is compelted.
+4. w:3 -> same goes with 3 that 1 primary and atleast 2 secondary should be done writing success.
+5. w:'j' -> write to primary journel before you retrun success.
+6. w:'majority' -> this means majority of nodes should have written data to disk before written success to user
+
+Read perference - (only from primary)(still data may be from secondary).
+1. Primary only
+2. secondary only
+3. primary perfered
+4. secondary prefered
+5. Nearest
+
+Driver itself tracks about which nodes are up and reconnection and checking which node is primary
+
+FailOver
+    1. SO when primary is down, Driver sence the same and buffer the writes in driver untill failover completes
+
+Replica set can have up to50 members, but only7 voting members
+
+Non-Voting Members - hold copies of the replica set’s data and can accept read operations from client applications.
+

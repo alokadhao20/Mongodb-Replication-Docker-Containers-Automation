@@ -1,0 +1,146 @@
+mongo --host mongo2 --port 27017 < init_replica.js
+
+controller:
+ image: aloka/mongodb:v8
+ command:
+  - --replSet
+  - "rs1"
+  
+  
+  
+  sudo mongod --port 30007 --replSet replica_set --dbpath /data/db/rs7
+  sudo mongod --port 30008 --replSet replica_set --dbpath /data/db/rs8
+  sudo mongod --port 30009 --replSet replica_set --dbpath /data/db/rs9
+  
+  mongo localhost:30001
+  rs.initiate()
+  osc-dev-debian
+  
+  2017-05-25T14:09:16.281+0530 I CONTROL  [initandlisten] 
+> rs.initiate()
+{
+	"info2" : "no configuration specified. Using a default configuration for the set",
+	"me" : "osc-dev-debian:30008",
+	"ok" : 1
+}
+replica_set:OTHER> rs.add("single-mongo-to-cluster-test2-mongodb-4:27017")
+{ "ok" : 1 }
+replica_set:PRIMARY> rs.add("osc-dev-debian:30007")
+
+///////////////////////////////////////////////////
+
+var MongoClient = require('mongodb').MongoClient;
+const express = require('express')
+const app = express()
+
+
+ConnectionString = "mongodb://"+
+            "osc-dev-debian:30007,"+
+            "osc-dev-debian:30008,"+
+            "osc-dev-debian:30009/"+
+            "teste"+
+            "?replicaSet=replica_set"
+			
+MongoClient.connect(ConnectionString, function (err, db) {
+        if (err) {
+            console.log("Connection error ", err);
+        } else {
+            global.db = db;
+           
+        }
+    });
+
+
+
+app.get('/', function (req, res) {
+  res.send('Hello World!')
+});
+
+app.get('/insert', function (req, res) {
+     db.collection("repl").insert({ 'x': 1 }, function (err, doc) {
+                if (err) {
+                    console.log("insertion error ", err);
+                     res.send(err)
+                } else {
+                     console.log("Data inserted ", doc);
+                   res.send(doc);
+                }
+            });  
+})
+
+app.listen(3000, function () {
+  console.log('Example app listening on port 3000!')
+})
+
+
+
+  
+  
+  config = {
+    _id: "replica_set",
+    members: [
+        {
+            _id: 0,
+             host: "single-mongo-to-cluster-test1-mongodb-1:27017",
+            priority: 0,
+            slaveDelay: 60
+        },
+        {
+            _id: 1,
+             host: "localhost:30008",
+        },
+        {
+            _id: 2,
+             host: "localhost:30009",
+        }
+    ]
+}
+
+config = {
+    _id: "replica_set",
+    members: [
+        {
+            _id: 0,
+             host: "single-mongo-to-cluster-test1-mongodb-1:27017"
+        }
+    ]
+}
+
+///////////////////////
+
+rs.initiate({
+    _id: "replica_set",
+    members: [
+        {
+            _id: 0,
+             host: "single-mongo-to-cluster-test2-mongodb-1:27017"
+        }
+    ]
+})
+rs.status()
+
+
+mongo --host 10.105.22.96 --port 27019     27021
+mongo --host 10.105.22.84 --port 27018     27021
+
+onesc@osc-dev-debian:~$ mongo --host 10.0.2.15 --port 27020
+MongoDB shell version: 3.2.9
+connecting to: 10.0.2.15:27020/test
+> rs.status()
+{
+	"info" : "run rs.initiate(...) if not yet done for the set",
+	"ok" : 0,
+	"errmsg" : "no replset config has been received",
+	"code" : 94,
+	"codeName" : "NotYetInitialized"
+}
+> rs.initiate()
+{
+	"info2" : "no configuration specified. Using a default configuration for the set",
+	"me" : "0620affea65a:27017",
+	"ok" : 1
+}
+single-mongo-to-cluster-test2-mongodb-2
+replica_set:PRIMARY> rs.add("10.105.22.84:27018")
+{ "ok" : 1 }
+rs.add("single-mongo-to-cluster-test2-mongodb-3:27017")

@@ -1,0 +1,219 @@
+1. Replication provides a level of fault tolerance against the loss of a single database server
+2. Replication can provide increased read capacity as clients can send read operations to different servers.
+3. A replica set contains several data bearing nodes minimum2 nodes including primary
+4. Different type of nodes exist in replica set
+4.1. Regular node OR data bearing nodes (PRIMARY or SECONDARY)
+	    Which hold copies of the replica set’s data and can accept read operations from client applications
+        4.2. Arbiter node.
+	    If you have a even set of replicaSet nodes so you need to have a majority to vote primary node.
+		It can participate in voting
+        4.3. Delayed node or Disaster recovery node 
+	    It can be set an hour or2 behind then the other nodes
+		It can participate in voting
+		It cannot become elected as a primary node ever(priority0).
+        4.4. Hidden node
+	    present for the purposes of Analytics, Recovery
+		It cannot become elected as a primary node ever(priority0).
+5. By default all reads and writes goes to primary (High consistency)
+   We can allow user to read data from secondary but this might happen that the data is stall ..
+    a behind the primary lates data (consistency decreases).
+   The replication of data from primary to secondary is asynchronous so we cannot tell exact time required
+    for it.
+   Read preferences can be set in drivers whether not to execept reads from secondary.
+6. When failover occurs then during the process of electing primary no writes are completed as
+ there is no primary (write failure condition)
+7. Eventual consistency is a term that in mongo cluster eventually after some time every secondary
+ node will get the data written on primary.
+   Eventual consistency in mongodb is only when we allow reads from secondary otherwise consistency is100% if read and writes are from primary only.
+8. Lets create a basic replicaSet 
+   1. Create a  create_replica_set.sh
+        mkdir -p /data/rs1 /data/rs2 /data/rs3
+        mongod --replSet rs1 --logpath"1.log" --dbpath /data/rs1 --port27018 --fork
+        mongod --replSet rs1 --logpath"2.log" --dbpath /data/rs2 --port27019 --fork
+        mongod --replSet rs1 --logpath"3.log" --dbpath /data/rs3 --port27020 --fork
+   2. bash	< create_replica_set.sh	  
+   O/p
+        ubuntualok@ubuntualokVirtualBox:~/Desktop/MongoReplication$ sudo bash create_replica_set.sh 
+        about to fork child process, waiting until server is ready for connections.
+        forked process: 29975
+        ERROR: child process failed, exited with error number48
+        about to fork child process, waiting until server is ready for connections.
+        forked process: 29981
+        child process started successfully, parent exiting
+        about to fork child process, waiting until server is ready for connections.
+        forked process: 30008
+        child process started successfully, parent exiting
+    4. update DNS of our local
+        ubuntualok@ubuntualokVirtualBox:~/Desktop/MongoReplication$ cat /etc/hosts127.0.0.1	localhost127.0.1.1	ubuntualokVirtualBox127.0.0.1   alokadhao.com
+
+9. Initiate replicaSet
+        By this we have all3 servers running but not yet initialized and they dont know about each other yet 
+        for this we have to create a configuration
+
+        Create init_replica.js
+
+		rs.initiate is a mongo command
+
+        IMPORTANT: you cannot rs.initiate(config) from the host which cannot be a primary that is priority: 0 so always run this command or script from 
+                primary capable hosts
+
+    COMMAND - ubuntualok@ubuntualokVirtualBox:~/Desktop/MongoReplication$ mongo --port27019 < init_replica.js
+    O/P - init_replica_op.json
+
+10. Let try to connect one of the node of replicaSet
+        COMMAND - ubuntualok@ubuntualokVirtualBox:~/Desktop/MongoReplication$ mongo --port27019
+        O/p rs1:PRIMARY> 
+            This is telling me that I am connected to one of the replicaSet node which is a Primary node 
+        COMMAND - rs1:PRIMARY> rs.status()
+        O/p - 10.rs.status1.json 
+            We can see3 replicaSet node details2 are secondary and1 is primary    
+11. Lets try to insert to primary 
+        COMMAND - rs1:PRIMARY> db.people.insert({'name':'Alok Adhao'
+})
+        O/P     - WriteResult({
+    "nInserted": 1
+})
+
+12. Lets try reading same data through secondary
+        COMMAND - mongo --port 27020
+        1.  COMMAND - rs1:SECONDARY> db.people.find()
+            O/p Error: error: {
+                "ok": 0,
+                "errmsg": "not master and slaveOk=false",
+                "code": 13435,
+                "codeName": "NotMasterNoSlaveOk"
+            }
+        To resolve this 
+        2.  COMMAND - rs.slaveOk()
+            O/p Done
+        3.  COMMAND - rs1:SECONDARY> db.people.find()
+            O/p -   { "_id" : ObjectId("591d4122a8d0b2c712412f07"), "name" : "Alok Adhao" }
+        
+        4. Same for other secondary
+            COMMAND mongo --port 27018
+            COMMAND - rs.slaveOk()
+            db.people.find()
+            O/P     { "_id" : ObjectId("591d4122a8d0b2c712412f07"), "name" : "Alok Adhao" }
+
+13. Check if the mongo node is master or not 
+        1. On secondary - 
+            COMMAND - mongo --port 27020
+            COMMAND - rs1:SECONDARY> rs.isMaster()
+            O/p - 13.rs.isMaster-op.json
+        2. On Primary - 
+            Command - mongo --port 27019
+            O/p 13.rs.isMaster-op-2.json
+            
+14. So How does replication works? -> oplogs
+    COMMAND rs1:PRIMARY> db.people.insert({"name":"Pankaj"});
+    1. On primary there is a capped collection(of certain size and it will loop after it fills) in "local" db which contains an oplog 
+     db.oplog.rs.find().pretty()
+     O/p one of the from complete collection
+       {
+            "ts" : Timestamp(1495093631, 1),
+            "t" : NumberLong(1),
+            "h" : NumberLong("7084982797128653433"),
+            "v" : 2,
+            "op" : "i",
+            "ns" : "test.people",
+            "o" : {
+                "_id" : ObjectId("591d517f06a0a89193769f30"),
+                "name" : "Pankaj"
+            }
+        }
+    2. On Secondory as well there is a capped collection with same name 
+    db.oplog.rs.find().pretty()
+    {
+        "ts" : Timestamp(1495093631, 1),
+        "t" : NumberLong(1),
+        "h" : NumberLong(7084982797128653433),
+        "v" : 2,
+        "op" : "i",
+        "ns" : "test.people",
+        "o" : {
+            "_id" : ObjectId("591d517f06a0a89193769f30"),
+            "name" : "Pankaj"
+        }
+    }
+    3. SO, Every secondary itteratively ask to primary if there is any new update after a perticuar timestamp ts.
+    4. Same process works if we create index on primary as well 
+
+15. On Primary failover
+    1. ubuntualok@ubuntualokVirtualBox:/data$ ps -ef | grep mongo
+    O/p ubuntua+ 29352  1918  1 10:56 ?        00:01:49 /home/ubuntualok/Downloads/robomongo-1.0.0-linux-x86_64-89f24ea/bin/robomongo
+        root     30253  1918  0 11:25 ?        00:00:55 mongod --replSet rs1 --logpath log/1.log --dbpath /data/rs1 --port 27018 --fork
+        root     30287  1918  0 11:25 ?        00:00:55 mongod --replSet rs1 --logpath log/2.log --dbpath /data/rs2 --port 27019 --fork
+        root     30380  1918  0 11:26 ?        00:00:54 mongod --replSet rs1 --logpath log/3.log --dbpath /data/rs3 --port 27020 --fork
+        Before killing primary 
+    rs.status()
+    O/p
+    15-beforeKillingMaster.json
+    2. killing primary 
+        ubuntualok@ubuntualokVirtualBox:/data$ sudo kill 30287
+    3. after killing primary (3 sec after)
+        rs.status()
+        O/p 15-afterKillingPrimary.json
+
+
+16. Implication of replication - 
+    1. Seed list (Driver should always know members of the replicaSets)
+    2. Write concern (w: waiting for some nodes to acknowledge ) 
+                     (j: wait or not wait to commit there writes to disk on primary node<not to be on journel>)
+                     (wtimeout: wait time until to other nodes are done writing)
+    3. Read perference - (only from primary)(still data may be from secondary).
+    4. Error can happen.
+
+
+17. Communation with node.js 
+    1. Driver itself tracks about which nodes are up and reconnection and checking which node is primary
+    2. While connection to replica set 
+        1. We can give commma seprated list of all the hosts and ports
+        2. Or we can give only one host and port and the driver will get all other node details if the node is in replica set
+        3. If we have given only 1 member and it is down then it wont be able to find rest of the nodes hence its is a good
+         practice to always give list of nodes instade of only one
+        is case of one of it is missing then it will be searched by the driver.
+    3. To add new replica set a new node 
+        COMMAND: rs.add("ipaddress:port");
+    4. Syntax to connect to replicaset is in server.js in Server folder
+
+18. FailOver
+    1. SO when primary is down, Driver sence the same and buffer the writes in driver untill failover completes
+    Code to check this behaviour - 
+
+    Server/checkingFailover.js
+    
+     In this we are inserting record every one second and failing over the primary manually and checing its behaviour, It works as 
+    expected.
+
+19. Write councern
+    1. w:1 -> this mins send write to primary and once primary acknowledges the write then response back to user
+    2. w:0 -> we are not councern about acknowledgement, In this case driver imidiately returns success once it is sent out to insert.
+    3. w:2 -> this retruns write successfull when 1 primary and atleast one secondary write to disk is compelted.
+    4. w:3 -> same goes with 3 that 1 primary and atleast 2 secondary should be done writing success.
+    5. w:'j' -> write to primary journel before you retrun success.
+    6. w:'majority' -> this means majority of nodes should have written data to disk before written success to user
+    7. We can prvide this options on 2 levels
+        1. global level that is in mongodb Connection url string
+        2. during db.insert call giving 2nd parameter as {'w': 2}
+        Eg given in Server/writeConcern.js
+    8. If we set w= number which is more than number of nodes then driver will not raise any error but the write operation waits forever.
+
+20. Read preference.
+    1. Bydefault all reads from driver will go to primary
+    2. there are following types of read preferences
+        1. Primary only
+        2. secondary only
+        3. primary perfered
+        4. secondary prefered
+        5. Nearest
+    3. We can provide read preference on 2 levels 
+        1. global level that is in mongodb Connection url string - ?readPreference=secondary
+        2. during db.find method as second parameter -> {'readPreference': ReadPreference.PRIMARY}
+    4. Eg. given in Server/readPreference.js
+
+
+Non-voting members must have priority of 0.
+replica set can have up to50 members, but only7 voting members
+backup
+arbiter 
+Non-Voting Members - hold copies of the replica set’s data and can accept read operations from client applications.

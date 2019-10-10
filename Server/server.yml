@@ -1,0 +1,8 @@
+server:
+ image: aloka/mongodbserver:v1
+ external_links:
+  - rs8/mongo1:mongo1
+  - rs8/mongo2:mongo2
+  - rs8/mongo3:mongo3
+ ports:
+  - "8090:8090"

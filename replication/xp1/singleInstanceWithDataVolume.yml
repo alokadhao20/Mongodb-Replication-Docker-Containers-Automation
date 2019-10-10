@@ -1,0 +1,21 @@
+
+mongodb:
+  labels:
+    io.rancher.container.hostname_override: container_name
+    io.rancher.sidekicks: mongodb-datavolume
+  tty: true
+  image: mongo
+  volumes_from:
+  - mongodb-datavolume
+  stdin_open: true
+mongodb-datavolume:
+  net: none
+  labels:
+    io.rancher.container.hostname_override: container_name
+    io.rancher.container.start_once: 'true'
+  entrypoint:
+  - /bin/true
+  image: busybox
+  volumes:
+  - /media/data5/localhost/mongodb/db:/data/db
+  stdin_open: true

@@ -1,0 +1,8 @@
+stack name - mongo-cluster
+should not have host label of server = application
+must not have a service with the name   mongo-cluster
+
+command ->  --replSet replica_set
+
+link stack and just this will wok
+mongodb://document:27017/test01?replicaSet=replica_set
